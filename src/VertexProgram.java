@@ -47,17 +47,13 @@ public class VertexProgram
 
 
 
-    public VertexProgram(float[] inArray){
+    public VertexProgram(float[][] inArray){
         // Create input- and output data
-        xArray = new float[inArray.length/3];
-        yArray = new float[inArray.length/3];
-        zArray = new float[inArray.length/3];
-        for(int i = 0; i < inArray.length/3; i++){
-            xArray[i] = inArray[3*i];
-            yArray[i] = inArray[3*i+1];
-            zArray[i] = inArray[3*i+2];
-        }
-        n = inArray.length / 3;
+        xArray = inArray[0];
+        yArray = inArray[1];
+        zArray = inArray[2];
+
+        n = xArray.length;
         xPointer = Pointer.to(xArray);
         yPointer = Pointer.to(yArray);
         zPointer = Pointer.to(zArray);
@@ -108,14 +104,14 @@ public class VertexProgram
 
         // Allocate the memory objects for the input- and output data
         xMem = clCreateBuffer(context,
-                CL_MEM_READ_WRITE,
-                Sizeof.cl_float * n, null, null);
+                CL_MEM_READ_WRITE | CL_MEM_HOST_PTR,
+                Sizeof.cl_float * n, xArray, null);
         yMem = clCreateBuffer(context,
-                CL_MEM_READ_WRITE,
-                Sizeof.cl_float * n, null, null);
+                CL_MEM_READ_WRITE | CL_MEM_HOST_PTR,
+                Sizeof.cl_float * n, yPointer, null);
         zMem = clCreateBuffer(context,
-                CL_MEM_READ_WRITE,
-                Sizeof.cl_float* n, null, null);
+                CL_MEM_READ_WRITE | CL_MEM_HOST_PTR,
+                Sizeof.cl_float* n, zPointer, null);
 
         // Create the program from the source code
         program = clCreateProgramWithSource(context,

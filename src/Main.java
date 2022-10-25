@@ -12,13 +12,13 @@ public class Main {
         comp.requestFocusInWindow();
         testFrame.pack();
         testFrame.setVisible(true);
-        while(true){
+        //while(true){
             try{
                 comp.repaint();
                 Thread.sleep(20);
             }catch(InterruptedException ie){
 
             }
-        }
+        //}
     }
 }

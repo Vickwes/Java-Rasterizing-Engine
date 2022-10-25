@@ -27,21 +27,17 @@ public class RasterizationProgram
     /**
      * The source code of the OpenCL program to execute
      */
-    int SIZE;
-    int n;
     private String programSource;
-
     private cl_program program;
     private cl_kernel kernel;
     private cl_command_queue commandQueue;
-
     private cl_context context;
 
 
 
 
     public RasterizationProgram(){
-        programSource = readFile("src/vert.cl");
+        programSource = readFile("src/rast.cl");
         // The platform, device type and device number
         // that will be used
         final int platformIndex = 0;
@@ -98,52 +94,91 @@ public class RasterizationProgram
 
     }
 
-    public float[] process(float[][] verts)
+    public BufferedImage process(float[][] verts, final int size)
     {
 
-
+        float depthBuffer[] = new float[size*size];
+        byte rArray[] = new byte[size*size];
+        byte gArray[] = new byte[size*size];
+        byte bArray[] = new byte[size*size];
+        float xArray[] = verts[0];
+        float yArray[] = verts[1];
+        float zArray[] = verts[2];
         //Create memory pointers
-        Pointer xPointer = Pointer.to(verts[0]);
-        Pointer yPointer = Pointer.to(verts[1]);
-        Pointer zPointer = Pointer.to(verts[2]);
+        Pointer xPointer = Pointer.to(xArray);
+        Pointer yPointer = Pointer.to(yArray);
+        Pointer zPointer = Pointer.to(zArray);
+        Pointer dbPointer = Pointer.to(depthBuffer);
+        Pointer rPointer = Pointer.to(rArray);
+        Pointer gPointer = Pointer.to(gArray);
+        Pointer bPointer = Pointer.to(bArray);
 
         // Allocate the memory objects for the input- and output data
         cl_mem xMem = clCreateBuffer(context,
-                CL_MEM_READ_ONLY,
-                Sizeof.cl_float * n, null, null);
+                CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                Sizeof.cl_float * verts[0].length, xPointer, null);
         cl_mem yMem = clCreateBuffer(context,
-                CL_MEM_READ_ONLY,
-                Sizeof.cl_float * n, null, null);
+                CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                Sizeof.cl_float * verts[1].length, yPointer, null);
         cl_mem zMem = clCreateBuffer(context,
-                CL_MEM_READ_ONLY,
-                Sizeof.cl_float * n, null, null);
+                CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                Sizeof.cl_float * verts[2].length, zPointer, null);
+        cl_mem dbMem = clCreateBuffer(context,
+                CL_MEM_READ_ONLY | CL_MEM_COPY_HOST_PTR,
+                Sizeof.cl_float * size*size, dbPointer, null);
+        cl_mem rMem = clCreateBuffer(context,
+                CL_MEM_WRITE_ONLY,
+                Sizeof.cl_char * size*size, null, null);
+        cl_mem gMem = clCreateBuffer(context,
+                CL_MEM_WRITE_ONLY,
+                Sizeof.cl_char * size*size, null, null);
+        cl_mem bMem = clCreateBuffer(context,
+                CL_MEM_WRITE_ONLY,
+                Sizeof.cl_char * size*size, null, null);
 
         // Set the arguments for the kernel
         float[] time = new float[]{(float)System.currentTimeMillis()};
+        int[] sizeArg = new int[]{size};
         int a = 0;
         clSetKernelArg(kernel, a++, Sizeof.cl_mem, Pointer.to(xMem));
-
+        clSetKernelArg(kernel, a++, Sizeof.cl_mem, Pointer.to(yMem));
+        clSetKernelArg(kernel, a++, Sizeof.cl_mem, Pointer.to(zMem));
+        clSetKernelArg(kernel, a++, Sizeof.cl_mem, Pointer.to(dbMem));
+        clSetKernelArg(kernel, a++, Sizeof.cl_mem, Pointer.to(rMem));
+        clSetKernelArg(kernel, a++, Sizeof.cl_mem, Pointer.to(gMem));
+        clSetKernelArg(kernel, a++, Sizeof.cl_mem, Pointer.to(bMem));
+        clSetKernelArg(kernel, a++, Sizeof.cl_int, Pointer.to(sizeArg));
 
 
         // Set the work-item dimensions
-        long global_work_size[] = new long[]{n};
+        long global_work_size[] = new long[]{1};
 
         // Execute the kernel
         clEnqueueNDRangeKernel(commandQueue, kernel, 1, null,
                 global_work_size, null, 0, null, null);
 
         // Read the output data
-        clEnqueueReadBuffer(commandQueue, xMem, CL_TRUE, 0,
-                n * Sizeof.cl_float, xPointer, 0, null, null);
-        clEnqueueReadBuffer(commandQueue, xMem, CL_TRUE, 0,
-                n * Sizeof.cl_float, yPointer, 0, null, null);
-        clEnqueueReadBuffer(commandQueue, xMem, CL_TRUE, 0,
-                n * Sizeof.cl_float, zPointer, 0, null, null);
+        clEnqueueReadBuffer(commandQueue, rMem, CL_TRUE, 0,
+                size*size * Sizeof.cl_uchar, rPointer, 0, null, null);
+        clEnqueueReadBuffer(commandQueue, gMem, CL_TRUE, 0,
+                size*size * Sizeof.cl_uchar, gPointer, 0, null, null);
+        clEnqueueReadBuffer(commandQueue, bMem, CL_TRUE, 0,
+                size*size * Sizeof.cl_uchar, bPointer, 0, null, null);
 
-        float[] outputArray = new float[n*3];
+        BufferedImage bi = new BufferedImage(size,size,BufferedImage.TYPE_INT_RGB);
+        System.out.println(gArray[0]);
+        System.out.println(gArray[1]);
+        System.out.println(gArray[2]);
 
-        // Process the result
-        return outputArray;
+
+        for(int i = 0; i < size; i++){
+            for(int j = 0; j < size; j++){
+                int index = i * size + j;
+                bi.setRGB(j,i,new Color(rArray[index], gArray[index], bArray[index]).getRGB());
+            }
+        }
+        return bi;
+
     }
 
 
